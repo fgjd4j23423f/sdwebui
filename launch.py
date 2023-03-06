@@ -334,19 +334,21 @@ def prepare_environment():
             task_install_codeformer_requirements,
             task_download_lora
         ]
-    
+
         t = []
         for task in tasks:
             task = threading.Thread(target=task)
             task.start()
             t.append(task)
-    
+
         for task in t:
             task.join()
-    
+
         task_install_webui_requirements()
-    except Exception:
-        print('some error)))')
+    except RuntimeError:
+        print('похуй')
+    except Exception as e:
+        print(e)
 
     run_extensions_installers(settings_file=args.ui_settings_file)
 
