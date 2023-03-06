@@ -323,7 +323,7 @@ def prepare_environment():
             'git lfs install && git clone --depth 1 --jobs 3 https://huggingface.co/zoto-ff/Lora /content/sdwebui/models/Lora --quiet > /dev/null',
             shell=True)
 
-    if "--skip-install" not in sys.argv:
+    try:
         tasks = [
             task_reinstall_torch,
             task_install_gfpgan,
@@ -334,17 +334,19 @@ def prepare_environment():
             task_install_codeformer_requirements,
             task_download_lora
         ]
-
+    
         t = []
         for task in tasks:
             task = threading.Thread(target=task)
             task.start()
             t.append(task)
-
+    
         for task in t:
             task.join()
-
+    
         task_install_webui_requirements()
+    except Exception:
+        print('some error)))')
 
     run_extensions_installers(settings_file=args.ui_settings_file)
 
