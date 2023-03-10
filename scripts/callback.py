@@ -25,7 +25,36 @@ class Script(scripts.Script):
 
         return [callback_url, filters]
 
-    def send(self, image, callback_url, gen_time):
+    def send(self, image, callback_url, filters, gen_time):
+        if len(filters) > 0:
+            filters = json.loads(filters)
+            for filter in filters:
+                if filter[0] == 'exposure':
+                    gamma = float(filter[1])
+
+                    height = image.size[0]
+                    width = image.size[1]
+                    result = Image.new(mode="RGB", size=(height, width), color=0)
+                    for x in range(height):
+                        for y in range(width):
+                            r = pow(image.getpixel((x, y))[0] / 255, (1 / gamma)) * 255
+                            g = pow(image.getpixel((x, y))[1] / 255, (1 / gamma)) * 255
+                            b = pow(image.getpixel((x, y))[2] / 255, (1 / gamma)) * 255
+
+                            color = (int(r), int(g), int(b))
+                            result.putpixel((x, y), color)
+
+                    image = result
+
+                elif filter[0] == 'saturation':
+                    multiplier = float(filter[1])
+
+                    converter = ImageEnhance.Color(image)
+                    image = converter.enhance(multiplier)
+
+                else:
+                    print('unknown filter:', filter[0])
+
         in_mem_file = io.BytesIO()
         image.save(in_mem_file, format="PNG")
         in_mem_file.seek(0)
@@ -51,37 +80,10 @@ class Script(scripts.Script):
         p.scripts.postprocess_batch = self.postprocess_batch
 
         proc = process_images(p)
-        image = proc.images
+        images = proc.images
 
-        filters = json.loads(filters)
-        for filter in filters:
-            match filter[0]:
-                case 'exposure':
-                    gamma = float(filter[1])
-
-                    height = image.size[0]
-                    width = image.size[1]
-                    result_img1 = Image.new(mode="RGB", size=(height, width), color=0)
-                    for x in range(height):
-                        for y in range(width):
-                            r = pow(image.getpixel((x, y))[0] / 255, (1 / gamma)) * 255
-                            g = pow(image.getpixel((x, y))[1] / 255, (1 / gamma)) * 255
-                            b = pow(image.getpixel((x, y))[2] / 255, (1 / gamma)) * 255
-
-                            color = (int(r), int(g), int(b))
-                            result_img1.putpixel((x, y), color)
-
-                    image.close()
-                    image = result_img1
-
-                case 'saturation':
-                    multiplier = float(filter[1])
-
-                    converter = ImageEnhance.Color(image)
-                    image = converter.enhance(multiplier)
-
-        t = threading.Thread(target=self.send, args=(image[0], callback_url, self.t))
+        t = threading.Thread(target=self.send, args=(images[0], callback_url, filters, self.t))
         t.daemon = True
         t.start()
 
-        return Processed(p, image, p.seed, proc.info)
+        return Processed(p, images, p.seed, proc.info)
